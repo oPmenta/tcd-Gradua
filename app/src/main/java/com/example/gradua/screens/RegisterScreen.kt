@@ -56,11 +56,15 @@ fun RegisterScreen(onBackClick: () -> Unit, onRegisterSuccess: () -> Unit) {
             Text("Criar conta", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(32.dp))
 
-            GraduaTextField(value = nome, onValueChange = { nome = it }, placeholder = "Nome")
+            GraduaTextField(value = nome, onValueChange = { nome = it }, placeholder = "Nome",)
             Spacer(modifier = Modifier.height(16.dp))
-            GraduaTextField(value = telefone, onValueChange = { telefone = it }, placeholder = "Número de telefone")
+            GraduaTextField(
+                value = telefone,
+                onValueChange = { telefone = it },
+                placeholder = "Número de telefone",
+            )
             Spacer(modifier = Modifier.height(16.dp))
-            GraduaTextField(value = email, onValueChange = { email = it }, placeholder = "Email")
+            GraduaTextField(value = email, onValueChange = { email = it }, placeholder = "Email",)
             Spacer(modifier = Modifier.height(16.dp))
             GraduaTextField(
                 value = password,
@@ -68,7 +72,7 @@ fun RegisterScreen(onBackClick: () -> Unit, onRegisterSuccess: () -> Unit) {
                 placeholder = "Senha",
                 isPassword = true,
                 isPasswordVisible = isPasswordVisible,
-                onVisibilityChange = { isPasswordVisible = !isPasswordVisible }
+                onVisibilityChange = { isPasswordVisible = !isPasswordVisible },
             )
 
             Spacer(modifier = Modifier.height(32.dp))

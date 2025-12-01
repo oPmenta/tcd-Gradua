@@ -17,8 +17,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import com.example.gradua.screens.FavoritesScreen
+import com.example.gradua.screens.FilterScreen
 import com.example.gradua.screens.HomeScreen1
 import com.example.gradua.screens.LoginScreen
+import com.example.gradua.screens.ProfileScreen
 import com.example.gradua.screens.RegisterScreen
 import com.example.gradua.ui.GraduaBottomBar
 import com.example.gradua.ui.theme.GraduaTheme
@@ -87,9 +90,9 @@ fun MainApp() {
                     )
                 }
                 "home" -> { HomeScreen1() }
-                "perfil" -> { PlaceholderScreen("Usuário") }
-                "favoritos" -> { PlaceholderScreen("Favoritos") }
-                "filtrar" -> { PlaceholderScreen("Filtrar") }
+                "favoritos" -> { FavoritesScreen() } // Atualizado
+                "filtrar" -> { FilterScreen() }      // Atualizado
+                "perfil" -> { ProfileScreen() }      // Atualizado
             }
         }
     }

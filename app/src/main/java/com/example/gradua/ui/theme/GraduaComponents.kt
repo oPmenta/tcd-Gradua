@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.example.gradua.ui.theme.InputBg
 import com.example.gradua.ui.theme.PurplePrimary
@@ -36,7 +37,8 @@ fun GraduaTextField(
     modifier: Modifier = Modifier,
     isPassword: Boolean = false,
     isPasswordVisible: Boolean = false,
-    onVisibilityChange: (() -> Unit)? = null
+    onVisibilityChange: (() -> Unit)? = null,
+    fontSize: TextUnit
 ) {
     OutlinedTextField(
         value = value,
