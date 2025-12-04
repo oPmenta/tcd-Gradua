@@ -1,140 +1,89 @@
 package com.example.gradua.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.gradua.ui.GraduaTextField
-import com.example.gradua.ui.theme.InputBg
-import com.example.gradua.ui.theme.PurplePrimary
+import com.example.gradua.data.Question
+import com.example.gradua.ui.theme.TextGray
 
+// Recebe a lista 'questions' como parâmetro
 @Composable
-fun FilterScreen() {
-    var searchText by remember { mutableStateOf("") }
-    var selectedSubject by remember { mutableStateOf("") }
-    var selectedContent by remember { mutableStateOf("") }
-
+fun FavoritesScreen(questions: List<Question>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Filtro de Questões",
+            text = "Questões Favoritas",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 32.dp)
+            modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Campo de texto
-        GraduaTextField(
-            value = searchText,
-            onValueChange = { searchText = it },
-            fontSize = 18.sp,
-            colortext = Color.Black, // Garante que a digitação seja preta
-            placeholder = "Digite uma parte do enunciado..."
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Dropdowns
-        GraduaDropdown(
-            label = "Selecione a Matéria",
-            options = listOf("Matemática", "Português", "História", "Geografia"),
-            selectedOption = selectedSubject,
-            onOptionSelected = { selectedSubject = it }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        GraduaDropdown(
-            label = "Selecione o Conteúdo",
-            options = listOf("Álgebra", "Geometria", "Interpretação", "Gramática"),
-            selectedOption = selectedContent,
-            onOptionSelected = { selectedContent = it }
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // Botão Filtrar
-        Button(
-            onClick = { /* Ação de Filtrar */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Filtrar", fontSize = 18.sp, color = Color.Black)
+        if (questions.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Nenhuma favorita ainda", color = TextGray)
+            }
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(questions) { question ->
+                    FavoriteItemCard(question)
+                }
+            }
         }
     }
 }
 
-// Componente auxiliar com a COR DO TEXTO alterada para PRETO
 @Composable
-fun GraduaDropdown(
-    label: String,
-    options: List<String>,
-    selectedOption: String,
-    onOptionSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayText = if (selectedOption.isEmpty()) label else selectedOption
-
-    // ALTERAÇÃO AQUI: Define a cor sempre como preta
-    val textColor = Color.Black
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = InputBg),
+fun FavoriteItemCard(question: Question) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(12.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clickable { expanded = !expanded }
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = displayText, color = textColor) // Agora usa Color.Black sempre
-                Icon(
-                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Expandir",
-                    tint = Color.Black
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = question.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(text = "Matéria: ${question.subject}", fontSize = 14.sp, color = Color.Black)
+                Text(text = "Ano: ${question.year}", fontSize = 14.sp, color = Color.Black)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = question.text,
+                    fontSize = 12.sp,
+                    color = TextGray,
+                    maxLines = 1
                 )
             }
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.85f)
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        // Garante que as opções do menu também sejam pretas
-                        Text(text = option, color = Color.Black)
-                    },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    }
-                )
-            }
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = "Favorito",
+                tint = Color(0xFFFFC107),
+                modifier = Modifier.size(32.dp)
+            )
         }
     }
 }

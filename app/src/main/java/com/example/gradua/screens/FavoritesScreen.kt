@@ -15,10 +15,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.gradua.ui.theme.PurplePrimary
 import com.example.gradua.ui.theme.TextGray
 
-// Modelo de dados simples para visualização
+// Modelo de dados
 data class Question(
     val id: Int,
     val title: String,
@@ -27,15 +26,25 @@ data class Question(
     val text: String
 )
 
+// 1. Função "Pública" chamada pela MainActivity (sem argumentos)
+// Ela cria/busca os dados e chama a função de exibição.
 @Composable
 fun FavoritesScreen() {
-    // Lista fictícia de dados
+    // Lista fictícia de dados (simulando um banco de dados)
     val favoriteQuestions = listOf(
         Question(1, "Questão 135", "Matemática", "2023", "Enunciado da questão sobre geometria..."),
         Question(2, "Questão 42", "Português", "2022", "Enunciado da questão sobre interpretação..."),
         Question(3, "Questão 90", "História", "2021", "Enunciado da questão sobre revolução...")
     )
 
+    // Chama a versão que aceita parâmetros
+    FavoritesScreenContent(questions = favoriteQuestions)
+}
+
+// 2. Função de Exibição (Stateless) - Recebe a lista como parâmetro
+// Mudei o nome para 'FavoritesScreenContent' para evitar conflitos e ficar mais organizado.
+@Composable
+fun FavoritesScreenContent(questions: List<Question>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -52,7 +61,7 @@ fun FavoritesScreen() {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(favoriteQuestions) { question ->
+            items(questions) { question ->
                 FavoriteItemCard(question)
             }
         }
@@ -65,7 +74,7 @@ fun FavoriteItemCard(question: Question) {
         modifier = Modifier
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)), // InputBg simulado
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -90,7 +99,7 @@ fun FavoriteItemCard(question: Question) {
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = "Favorito",
-                tint = Color(0xFFFFC107), // Cor amarela/dourada para a estrela
+                tint = Color(0xFFFFC107),
                 modifier = Modifier.size(32.dp)
             )
         }

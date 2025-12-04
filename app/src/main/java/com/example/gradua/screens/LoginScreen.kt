@@ -1,143 +1,162 @@
 package com.example.gradua.screens
 
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.gradua.R
+import com.example.gradua.data.DatabaseHelper
 import com.example.gradua.ui.GraduaTextField
-import com.example.gradua.ui.theme.InputBg
 import com.example.gradua.ui.theme.PurplePrimary
-// O TextGray não é mais necessário aqui pois vamos usar Color.Black direto,
-// mas mantive o import caso precise reverter no futuro.
 import com.example.gradua.ui.theme.TextGray
+import com.example.gradua.utils.SessionManager
 
 @Composable
-fun FilterScreen() {
-    var searchText by remember { mutableStateOf("") }
-    var selectedSubject by remember { mutableStateOf("") }
-    var selectedContent by remember { mutableStateOf("") }
+fun LoginScreen(onLoginSuccess: () -> Unit, onRegisterClick: () -> Unit) {
+    val context = LocalContext.current
+    // Inicializa os helpers de Banco de Dados e Sessão
+    val dbHelper = remember { DatabaseHelper(context) }
+    val sessionManager = remember { SessionManager(context) }
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = "Filtro de Questões",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 32.dp)
-        )
-
-        // Campo de texto
-        GraduaTextField(
-            value = searchText,
-            onValueChange = { searchText = it },
-            fontSize = 18.sp,
-            colortext = Color.Black, // Garante que a digitação seja preta
-            placeholder = "Digite uma parte do enunciado..."
+        // Logo com descrição decorativa (null) pois o texto abaixo já explica
+        Image(
+            painter = painterResource(id = R.drawable.logo),
+            contentDescription = "Logo Gradua", // Descrição para acessibilidade
+            modifier = Modifier.size(150.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Dropdowns
-        GraduaDropdown(
-            label = "Selecione a Matéria",
-            options = listOf("Matemática", "Português", "História", "Geografia"),
-            selectedOption = selectedSubject,
-            onOptionSelected = { selectedSubject = it }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        GraduaDropdown(
-            label = "Selecione o Conteúdo",
-            options = listOf("Álgebra", "Geometria", "Interpretação", "Gramática"),
-            selectedOption = selectedContent,
-            onOptionSelected = { selectedContent = it }
-        )
+        // Título e Subtítulo
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "Gradua",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = PurplePrimary,
+                modifier = Modifier.semantics { heading() } // Indica que é um Título
+            )
+            Text(
+                text = "Seu app de estudos",
+                fontSize = 16.sp,
+                color = TextGray
+            )
+        }
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Botão Filtrar
+        // Campos de Texto
+        GraduaTextField(
+            value = email,
+            onValueChange = { email = it },
+            placeholder = "Email",
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        GraduaTextField(
+            value = password,
+            onValueChange = { password = it },
+            placeholder = "Senha",
+            isPassword = true,
+            isPasswordVisible = isPasswordVisible,
+            onVisibilityChange = { isPasswordVisible = !isPasswordVisible },
+            fontSize = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Esqueceu senha
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                text = "Esqueceu sua senha?",
+                color = PurplePrimary,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .clickable {
+                        Toast.makeText(context, "Funcionalidade em breve", Toast.LENGTH_SHORT).show()
+                    }
+                    .semantics { role = Role.Button } // Avisa que é clicável como um botão
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Botão Entrar
         Button(
-            onClick = { /* Ação de Filtrar */ },
+            onClick = {
+                if (email.isNotEmpty() && password.isNotEmpty()) {
+                    val isValid = dbHelper.checkUser(email, password)
+                    if (isValid) {
+                        // Salva a sessão antes de navegar
+                        sessionManager.saveUserSession(email)
+                        onLoginSuccess()
+                    } else {
+                        Toast.makeText(context, "Email ou senha inválidos", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(context, "Preencha todos os campos", Toast.LENGTH_SHORT).show()
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
+                .height(50.dp)
+                .semantics { contentDescription = "Botão Entrar na conta" },
             colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Filtrar", fontSize = 18.sp, color = Color.Black)
+            Text("Entrar", fontSize = 18.sp, color = Color.White)
         }
-    }
-}
 
-// Componente auxiliar para simular o Dropdown com o mesmo estilo do GraduaTextField
-@Composable
-fun GraduaDropdown(
-    label: String,
-    options: List<String>,
-    selectedOption: String,
-    onOptionSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayText = if (selectedOption.isEmpty()) label else selectedOption
+        Spacer(modifier = Modifier.height(24.dp))
 
-    // ALTERAÇÃO: Força a cor preta sempre, removendo a lógica do cinza
-    val textColor = Color.Black
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = InputBg),
+        // Rodapé Cadastro - Melhorado para acessibilidade
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clickable { expanded = !expanded }
+                .clickable { onRegisterClick() }
+                .padding(8.dp) // Aumenta área de toque
+                .semantics(mergeDescendants = true) { // Lê tudo junto como uma frase única
+                    contentDescription = "Não tem uma conta? Cadastre-se"
+                    role = Role.Button
+                }
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = displayText, color = textColor)
-                Icon(
-                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Expandir",
-                    tint = Color.Black
-                )
-            }
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.85f) // Ajuste de largura se necessário
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        // Garante que o texto da opção também seja preto
-                        Text(text = option, color = Color.Black)
-                    },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    }
-                )
-            }
+            Text("Não tem uma conta? ", color = TextGray)
+            Text(
+                text = "Cadastre-se",
+                color = PurplePrimary,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

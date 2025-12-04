@@ -3,30 +3,25 @@ package com.example.gradua.ui
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
-
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.FilterList
-
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.gradua.ui.theme.InputBg
 import com.example.gradua.ui.theme.PurplePrimary
 import com.example.gradua.ui.theme.TextGray
-
-// --- Se as cores não estiverem sendo reconhecidas, descomente as linhas abaixo ---
-// val PurplePrimary = Color(0xFF6C63FF)
-// val TextGray = Color(0xFF888888)
-// val InputBg = Color(0xFFF5F5F5)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +33,8 @@ fun GraduaTextField(
     isPassword: Boolean = false,
     isPasswordVisible: Boolean = false,
     onVisibilityChange: (() -> Unit)? = null,
-    fontSize: TextUnit
+    fontSize: TextUnit = 16.sp, // Adicionado valor padrão para corrigir RegisterScreen
+    textColor: Color = Color.Black // Adicionado parâmetro de cor
 ) {
     OutlinedTextField(
         value = value,
@@ -46,12 +42,15 @@ fun GraduaTextField(
         placeholder = { Text(placeholder, color = TextGray) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
+        textStyle = TextStyle(fontSize = fontSize), // Aplica o tamanho da fonte
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = InputBg,
             unfocusedContainerColor = InputBg,
             disabledContainerColor = InputBg,
             focusedBorderColor = PurplePrimary,
             unfocusedBorderColor = Color.Transparent,
+            focusedTextColor = textColor, // Aplica a cor do texto
+            unfocusedTextColor = textColor // Aplica a cor do texto
         ),
         visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None,
         trailingIcon = if (isPassword) {
