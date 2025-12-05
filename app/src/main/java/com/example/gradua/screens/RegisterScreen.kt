@@ -225,7 +225,7 @@ fun SelectionCard(
 
     OutlinedCard(
         onClick = onClick,
-        modifier = modifier.height(110.dp), // Removi fillMaxWidth aqui para deixar flexivel
+        modifier = modifier.height(110.dp),
         border = BorderStroke(2.dp, color),
         colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent)
     ) {
