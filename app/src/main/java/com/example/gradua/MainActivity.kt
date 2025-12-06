@@ -18,13 +18,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import com.example.gradua.screens.FavoritesScreen
-import com.example.gradua.screens.FilterScreen
 import com.example.gradua.screens.HomeScreen1
 import com.example.gradua.screens.LoginScreen
 import com.example.gradua.screens.ProfileScreen
 import com.example.gradua.screens.RegisterScreen
 import com.example.gradua.ui.GraduaBottomBar
 import com.example.gradua.ui.theme.GraduaTheme
+
+import com.example.gradua.viewModel.GraduaViewModel
+
+//import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +50,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainApp() {
+
+    // O viewModel() padrão já sabe criar AndroidViewModel com Application context
+   /* val viewModel: GraduaViewModel = viewModel()
+
+    val favoritesState by viewModel.favorites.collectAsState()*/
     var currentScreen by remember { mutableStateOf("login") }
     var selectedBottomItem by remember { mutableStateOf(0) }
     // Define em quais telas a barra inferior deve aparecer
@@ -90,12 +100,19 @@ fun MainApp() {
                     )
                 }
                 "home" -> { HomeScreen1() }
-                "favoritos" -> { FavoritesScreen() } // Atualizado
+                "favoritos" -> { FavoritesScreen(
+                    questions = TODO()
+                ) } // Atualizado
                 "filtrar" -> { FilterScreen() }      // Atualizado
                 "perfil" -> { ProfileScreen() }      // Atualizado
             }
         }
     }
+}
+
+@Composable
+fun FilterScreen() {
+    TODO("Not yet implemented")
 }
 
 @Composable

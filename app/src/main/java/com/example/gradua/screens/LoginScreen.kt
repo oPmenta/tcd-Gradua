@@ -1,143 +1,155 @@
 package com.example.gradua.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.gradua.data.DatabaseHelper
 import com.example.gradua.ui.GraduaTextField
-import com.example.gradua.ui.theme.InputBg
 import com.example.gradua.ui.theme.PurplePrimary
-// O TextGray não é mais necessário aqui pois vamos usar Color.Black direto,
-// mas mantive o import caso precise reverter no futuro.
 import com.example.gradua.ui.theme.TextGray
+import com.example.gradua.utils.SessionManager
 
 @Composable
-fun FilterScreen() {
-    var searchText by remember { mutableStateOf("") }
-    var selectedSubject by remember { mutableStateOf("") }
-    var selectedContent by remember { mutableStateOf("") }
+fun LoginScreen(
+    onLoginSuccess: () -> Unit,
+    onRegisterClick: () -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        // Logo e Título
+        Icon(
+            imageVector = Icons.Filled.MenuBook,
+            contentDescription = "Logo Gradua",
+            modifier = Modifier.size(80.dp),
+            tint = PurplePrimary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = "Filtro de Questões",
-            fontSize = 22.sp,
+            text = "Bem-vindo ao Gradua",
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 32.dp)
+            color = Color.Black
         )
 
-        // Campo de texto
+        Text(
+            text = "Faça login para continuar",
+            fontSize = 16.sp,
+            color = TextGray,
+            modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+        )
+
+        // Campos de Texto
         GraduaTextField(
-            value = searchText,
-            onValueChange = { searchText = it },
-            fontSize = 18.sp,
-            colortext = Color.Black, // Garante que a digitação seja preta
-            placeholder = "Digite uma parte do enunciado..."
+            value = email,
+            onValueChange = { email = it },
+            placeholder = "Email",
+            fontSize = 16.sp // Adicionado conforme assinatura do seu componente
         )
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Dropdowns
-        GraduaDropdown(
-            label = "Selecione a Matéria",
-            options = listOf("Matemática", "Português", "História", "Geografia"),
-            selectedOption = selectedSubject,
-            onOptionSelected = { selectedSubject = it }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        GraduaDropdown(
-            label = "Selecione o Conteúdo",
-            options = listOf("Álgebra", "Geometria", "Interpretação", "Gramática"),
-            selectedOption = selectedContent,
-            onOptionSelected = { selectedContent = it }
+        GraduaTextField(
+            value = password,
+            onValueChange = { password = it },
+            placeholder = "Senha",
+            isPassword = true,
+            isPasswordVisible = isPasswordVisible,
+            onVisibilityChange = { isPasswordVisible = !isPasswordVisible },
+            fontSize = 16.sp // Adicionado conforme assinatura do seu componente
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Botão Filtrar
+        // Link de "Esqueci a senha" (Opcional)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                text = "Esqueceu a senha?",
+                color = PurplePrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { /* Ação de recuperar senha */ }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Botão de Entrar
         Button(
-            onClick = { /* Ação de Filtrar */ },
+            onClick = onLoginSuccess,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Filtrar", fontSize = 18.sp, color = Color.Black)
+            Text(
+                text = "Entrar",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Rodapé para Cadastro
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Não tem uma conta? ",
+                fontSize = 14.sp,
+                color = TextGray
+            )
+            Text(
+                text = "Cadastre-se",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = PurplePrimary,
+                modifier = Modifier.clickable { onRegisterClick() }
+            )
         }
     }
 }
 
-// Componente auxiliar para simular o Dropdown com o mesmo estilo do GraduaTextField
+@Preview(showBackground = true)
 @Composable
-fun GraduaDropdown(
-    label: String,
-    options: List<String>,
-    selectedOption: String,
-    onOptionSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayText = if (selectedOption.isEmpty()) label else selectedOption
-
-    // ALTERAÇÃO: Força a cor preta sempre, removendo a lógica do cinza
-    val textColor = Color.Black
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = InputBg),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clickable { expanded = !expanded }
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = displayText, color = textColor)
-                Icon(
-                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Expandir",
-                    tint = Color.Black
-                )
-            }
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.85f) // Ajuste de largura se necessário
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        // Garante que o texto da opção também seja preto
-                        Text(text = option, color = Color.Black)
-                    },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    }
-                )
-            }
-        }
+fun LoginScreenPreview() {
+    GraduaTheme {
+        LoginScreen(
+            onLoginSuccess = {},
+            onRegisterClick = {}
+        )
     }
 }
