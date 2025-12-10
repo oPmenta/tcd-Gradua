@@ -3,69 +3,73 @@ package com.example.gradua
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
-import com.example.gradua.screens.FavoritesScreen
-import com.example.gradua.screens.HomeScreen1
+import androidx.compose.ui.platform.LocalContext
+
 import com.example.gradua.screens.LoginScreen
+import com.example.gradua.screens.HomeScreen1
+import com.example.gradua.screens.QuizScreen
+import com.example.gradua.screens.FavoritesScreen
+import com.example.gradua.screens.FilterScreen
 import com.example.gradua.screens.ProfileScreen
 import com.example.gradua.screens.RegisterScreen
+
 import com.example.gradua.ui.GraduaBottomBar
+import com.example.gradua.data.UserStore
 import com.example.gradua.ui.theme.GraduaTheme
-
-import com.example.gradua.viewModel.GraduaViewModel
-
-//import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             GraduaTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainApp()
+                    MainScreen()
                 }
             }
         }
     }
 }
 
-
 @Composable
-fun MainApp() {
+fun MainScreen() {
+    val context = LocalContext.current
+    val userStore = remember { UserStore(context) }
 
-    // O viewModel() padrão já sabe criar AndroidViewModel com Application context
-   /* val viewModel: GraduaViewModel = viewModel()
+    var currentScreen by remember {
+        mutableStateOf(if (userStore.isUserLoggedIn()) "home" else "login")
+    }
 
-    val favoritesState by viewModel.favorites.collectAsState()*/
-    var currentScreen by remember { mutableStateOf("login") }
-    var selectedBottomItem by remember { mutableStateOf(0) }
-    // Define em quais telas a barra inferior deve aparecer
-    val showBottomBar = currentScreen in listOf("home", "favoritos", "filtrar", "perfil")
+    // Variáveis de Estado
+    var filtroMateriaAtual by remember { mutableStateOf<String?>(null) }
+    var filtroConteudoAtual by remember { mutableStateOf("") }
+    var filtroBuscaAtual by remember { mutableStateOf("") }
+
+    // NOVO: Controla se é Simulado ou Lista Normal
+    var isSimuladoMode by remember { mutableStateOf(true) }
+
+    var selectedBottomItem by remember { mutableIntStateOf(0) }
+
+    val showBottomBar = currentScreen !in listOf("login", "cadastro", "simulado_semanal")
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 GraduaBottomBar(
                     selectedItem = selectedBottomItem,
-                    onNavigate = { index ->
+                    onNavigate = { index: Int ->
                         selectedBottomItem = index
                         currentScreen = when (index) {
                             0 -> "home"
@@ -78,8 +82,15 @@ fun MainApp() {
                 )
             }
         }
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
+    ) { paddingValues ->
+
+        val modifier = if (currentScreen == "simulado_semanal" || currentScreen == "favoritos") {
+            Modifier.fillMaxSize()
+        } else {
+            Modifier.fillMaxSize().padding(paddingValues)
+        }
+
+        Box(modifier = modifier) {
             when (currentScreen) {
                 "login" -> {
                     LoginScreen(
@@ -87,10 +98,10 @@ fun MainApp() {
                             currentScreen = "home"
                             selectedBottomItem = 0
                         },
-                        onRegisterClick = { currentScreen = "register" }
+                        onRegisterClick = { currentScreen = "cadastro" }
                     )
                 }
-                "register" -> {
+                "cadastro" -> {
                     RegisterScreen(
                         onBackClick = { currentScreen = "login" },
                         onRegisterSuccess = {
@@ -99,27 +110,52 @@ fun MainApp() {
                         }
                     )
                 }
-                "home" -> { HomeScreen1() }
-                "favoritos" -> { FavoritesScreen(
-                    questions = TODO()
-                ) } // Atualizado
-                "filtrar" -> { FilterScreen() }      // Atualizado
-                "perfil" -> { ProfileScreen() }      // Atualizado
+                "home" -> {
+                    HomeScreen1(
+                        onDailyQuizClick = {
+                            // Reseta filtros e ATIVA MODO SIMULADO
+                            filtroMateriaAtual = null
+                            filtroConteudoAtual = ""
+                            filtroBuscaAtual = ""
+                            isSimuladoMode = true // <--- TRUE AQUI
+                            currentScreen = "simulado_semanal"
+                        }
+                    )
+                }
+                "simulado_semanal" -> {
+                    QuizScreen(
+                        materia = filtroMateriaAtual,
+                        conteudo = filtroConteudoAtual,
+                        busca = filtroBuscaAtual,
+                        isSimulado = isSimuladoMode, // Passamos a flag para o Quiz
+                        onBackClick = {
+                            currentScreen = "home"
+                            selectedBottomItem = 0
+                        }
+                    )
+                }
+                "favoritos" -> { FavoritesScreen() }
+                "filtrar" -> {
+                    FilterScreen(
+                        onFilterApplied = { materia, busca, conteudo ->
+                            filtroMateriaAtual = materia
+                            filtroBuscaAtual = busca
+                            filtroConteudoAtual = conteudo
+                            isSimuladoMode = false // <--- FALSE AQUI (Modo Filtrar)
+                            currentScreen = "simulado_semanal"
+                        }
+                    )
+                }
+                "perfil" -> {
+                    ProfileScreen(
+                        onLogout = {
+                            userStore.logout()
+                            currentScreen = "login"
+                            selectedBottomItem = 0
+                        }
+                    )
+                }
             }
-        }
-    }
-}
-
-@Composable
-fun FilterScreen() {
-    TODO("Not yet implemented")
-}
-
-@Composable
-fun PlaceholderScreen(name: String) {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Box(contentAlignment = Alignment.Center) {
-            Text("Tela de $name")
         }
     }
 }

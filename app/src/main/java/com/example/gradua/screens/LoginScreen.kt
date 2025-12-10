@@ -4,9 +4,9 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,149 +14,134 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gradua.R
-import com.example.gradua.data.DatabaseHelper
+import com.example.gradua.data.UserStore
+import com.example.gradua.network.GraduaServerApi
+import com.example.gradua.network.LoginDto
 import com.example.gradua.ui.GraduaTextField
 import com.example.gradua.ui.theme.PurplePrimary
 import com.example.gradua.ui.theme.TextGray
-import com.example.gradua.utils.SessionManager
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit, onRegisterClick: () -> Unit) {
     val context = LocalContext.current
-    // Inicializa os helpers de Banco de Dados e Sessão
-    val dbHelper = remember { DatabaseHelper(context) }
-    val sessionManager = remember { SessionManager(context) }
+    val userStore = remember { UserStore(context) }
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(scrollState)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo com descrição decorativa (null) pois o texto abaixo já explica
         Image(
             painter = painterResource(id = R.drawable.logo),
-            contentDescription = "Logo Gradua", // Descrição para acessibilidade
-            modifier = Modifier.size(150.dp)
+            contentDescription = null,
+            modifier = Modifier.size(200.dp)
         )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            "Bem-vindo de volta!",
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Bold,
+            color = PurplePrimary
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        GraduaTextField(value = email, onValueChange = { email = it }, placeholder = "Email")
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Título e Subtítulo
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Gradua",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = PurplePrimary,
-                modifier = Modifier.semantics { heading() } // Indica que é um Título
-            )
-            Text(
-                text = "Seu app de estudos",
-                fontSize = 16.sp,
-                color = TextGray
-            )
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // Campos de Texto
-        GraduaTextField(
-            value = email,
-            onValueChange = { email = it },
-            placeholder = "Email",
-            fontSize = 16.sp
-        )
-        Spacer(modifier = Modifier.height(16.dp))
         GraduaTextField(
             value = password,
             onValueChange = { password = it },
             placeholder = "Senha",
             isPassword = true,
             isPasswordVisible = isPasswordVisible,
-            onVisibilityChange = { isPasswordVisible = !isPasswordVisible },
-            fontSize = 16.sp
+            onVisibilityChange = { isPasswordVisible = !isPasswordVisible }
         )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Esqueceu senha
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            Text(
-                text = "Esqueceu sua senha?",
-                color = PurplePrimary,
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .clickable {
-                        Toast.makeText(context, "Funcionalidade em breve", Toast.LENGTH_SHORT).show()
-                    }
-                    .semantics { role = Role.Button } // Avisa que é clicável como um botão
-            )
-        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Botão Entrar
         Button(
             onClick = {
                 if (email.isNotEmpty() && password.isNotEmpty()) {
-                    val isValid = dbHelper.checkUser(email, password)
-                    if (isValid) {
-                        // Salva a sessão antes de navegar
-                        sessionManager.saveUserSession(email)
-                        onLoginSuccess()
-                    } else {
-                        Toast.makeText(context, "Email ou senha inválidos", Toast.LENGTH_SHORT).show()
+                    isLoading = true
+                    scope.launch {
+                        try {
+                            // Envia login para o Python
+                            val loginDto = LoginDto(email, password)
+                            val response = GraduaServerApi.service.loginUser(loginDto)
+
+                            // Verifica sucesso (se tem user_id, deu certo)
+                            if (response.userId != null) {
+
+                                // Salva no celular para manter a sessão
+                                userStore.registerUser(
+                                    name = response.nomeCompleto ?: "Estudante",
+                                    username = response.username ?: "",
+                                    email = email,
+                                    password = password,
+                                    // Obs: O Python não mandou escola, salvamos vazio ou texto padrão
+                                    escola = response.escola ?: "Escola não informada"
+                                )
+                                // Marca logado
+                                userStore.login(email)
+                                onLoginSuccess()
+                            } else {
+                                Toast.makeText(context, response.erro ?: "Erro ao fazer login", Toast.LENGTH_LONG).show()
+                            }
+                        } catch (e: retrofit2.HttpException) {
+                            if (e.code() == 401) {
+                                Toast.makeText(context, "Email ou senha incorretos!", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Erro no servidor: ${e.code()}", Toast.LENGTH_LONG).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Erro de conexão: ${e.message}", Toast.LENGTH_LONG).show()
+                        } finally {
+                            isLoading = false
+                        }
                     }
                 } else {
                     Toast.makeText(context, "Preencha todos os campos", Toast.LENGTH_SHORT).show()
                 }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .semantics { contentDescription = "Botão Entrar na conta" },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            enabled = !isLoading
         ) {
-            Text("Entrar", fontSize = 18.sp, color = Color.White)
+            if (isLoading) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            } else {
+                Text("Entrar", fontSize = 18.sp, color = Color.White)
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Rodapé Cadastro - Melhorado para acessibilidade
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clickable { onRegisterClick() }
-                .padding(8.dp) // Aumenta área de toque
-                .semantics(mergeDescendants = true) { // Lê tudo junto como uma frase única
-                    contentDescription = "Não tem uma conta? Cadastre-se"
-                    role = Role.Button
-                }
+            modifier = Modifier.clickable { onRegisterClick() }.padding(8.dp)
         ) {
             Text("Não tem uma conta? ", color = TextGray)
-            Text(
-                text = "Cadastre-se",
-                color = PurplePrimary,
-                fontWeight = FontWeight.Bold
-            )
+            Text("Cadastre-se", color = PurplePrimary, fontWeight = FontWeight.Bold)
         }
     }
 }

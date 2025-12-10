@@ -1,89 +1,166 @@
 package com.example.gradua.screens
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager // IMPORTANTE
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.gradua.data.Question
-import com.example.gradua.ui.theme.TextGray
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gradua.ui.theme.PurplePrimary
+import com.example.gradua.viewModel.FilterViewModel
 
-// Recebe a lista 'questions' como parâmetro
 @Composable
-fun FavoritesScreen(questions: List<Question>) {
+fun FilterScreen(
+    // Agora aceita 3 parâmetros: Materia, Busca e CONTEUDO
+    onFilterApplied: (String, String, String) -> Unit,
+    viewModel: FilterViewModel = viewModel()
+) {
+    // Gerenciador de Foco para fechar teclado
+    val focusManager = LocalFocusManager.current
+
+    var searchText by remember { mutableStateOf("") }
+    var selectedSubject by remember { mutableStateOf("") }
+    var selectedContent by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            // --- AQUI ESTÁ O TRUQUE PARA O FOCO ---
+            // Detecta toque em qualquer lugar vazio e tira o foco
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                })
+            }
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Questões Favoritas",
+            text = "Filtro de Questões",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 24.dp)
+            modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        if (questions.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Nenhuma favorita ainda", color = TextGray)
-            }
+        if (viewModel.isLoading) {
+            CircularProgressIndicator(color = PurplePrimary)
+            Text("Carregando...", modifier = Modifier.padding(top = 8.dp))
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(questions) { question ->
-                    FavoriteItemCard(question)
+
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                label = { Text("Buscar no enunciado") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            GraduaDropdown(
+                label = "Selecione a Matéria",
+                options = viewModel.availableSubjects,
+                selectedOption = selectedSubject,
+                onOptionSelected = { materia ->
+                    selectedSubject = materia
+                    selectedContent = ""
+                    viewModel.onSubjectSelected(materia)
                 }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (selectedSubject.isNotEmpty()) {
+                GraduaDropdown(
+                    label = "Selecione o Conteúdo",
+                    options = viewModel.availableContents,
+                    selectedOption = selectedContent,
+                    onOptionSelected = { selectedContent = it }
+                )
+            } else {
+                Text("Selecione uma matéria primeiro", fontSize = 14.sp, color = Color.Gray)
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Button(
+                onClick = {
+                    // Passa os 3 filtros para a MainActivity
+                    onFilterApplied(selectedSubject, searchText, selectedContent)
+                },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Filtrar", fontSize = 18.sp, color = Color.White)
             }
         }
     }
 }
 
+// (Mantenha o seu GraduaDropdown igual aqui embaixo...)
 @Composable
-fun FavoriteItemCard(question: Question) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
+fun GraduaDropdown(
+    label: String,
+    options: List<String>,
+    selectedOption: String,
+    onOptionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayText = if (selectedOption.isEmpty()) label else selectedOption
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0)),
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxWidth()
+                .height(56.dp)
+                .clickable { expanded = !expanded }
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = question.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(text = "Matéria: ${question.subject}", fontSize = 14.sp, color = Color.Black)
-                Text(text = "Ano: ${question.year}", fontSize = 14.sp, color = Color.Black)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = question.text,
-                    fontSize = 12.sp,
-                    color = TextGray,
-                    maxLines = 1
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = displayText, color = Color.Black)
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = "Expandir",
+                    tint = Color.Black
                 )
             }
-            Icon(
-                imageVector = Icons.Filled.Star,
-                contentDescription = "Favorito",
-                tint = Color(0xFFFFC107),
-                modifier = Modifier.size(32.dp)
-            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.85f)
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(text = option) },
+                    onClick = {
+                        onOptionSelected(option)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }

@@ -1,117 +1,97 @@
 package com.example.gradua.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.MenuBook
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gradua.R
-import com.example.gradua.data.DatabaseHelper
-import com.example.gradua.screens.SelectionCard
+import com.example.gradua.data.UserStore
+import com.example.gradua.network.GraduaServerApi
+import com.example.gradua.network.UserDto
 import com.example.gradua.ui.GraduaTextField
 import com.example.gradua.ui.theme.PurplePrimary
-import com.example.gradua.ui.theme.TextGray
-import com.example.gradua.utils.SessionManager
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(onBackClick: () -> Unit, onRegisterSuccess: () -> Unit) {
     val context = LocalContext.current
-    val dbHelper = remember { DatabaseHelper(context) }
-    val sessionManager = remember { SessionManager(context) }
+    val userStore = remember { UserStore(context) }
 
-    var nome by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+
+    var name by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var escola by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
-
-    var escola by remember { mutableStateOf("") }
-    var faculdade by remember { mutableStateOf("") }
-
-    var selectedExam by remember { mutableStateOf("ENEM") }
+    var isLoading by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Voltar", fontSize = 16.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Voltar"
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+        containerColor = Color.White,
+        contentWindowInsets = WindowInsets.safeDrawing
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .padding(paddingValues)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(
+                    top = innerPadding.calculateTopPadding(),
+                    start = innerPadding.calculateLeftPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                    end = innerPadding.calculateRightPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
+                )
+                .verticalScroll(scrollState)
+                .imePadding()
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = "Logo Gradua",
-                modifier = Modifier.size(150.dp)
-            )
-            Spacer(modifier = Modifier.height(7.dp))
-
-            Text(
-                text = "Cadastro",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.semantics { heading() }
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(start = 8.dp, top = 16.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.Start
             ) {
-                GraduaTextField(
-                    value = nome,
-                    onValueChange = { nome = it },
-                    placeholder = "Nome Completo",
-                    fontSize = 16.sp
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = PurplePrimary)
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(200.dp)
                 )
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text("Cadastro", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = PurplePrimary)
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                GraduaTextField(value = name, onValueChange = { name = it }, placeholder = "Nome Completo")
                 Spacer(modifier = Modifier.height(12.dp))
 
-                GraduaTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = "Email",
-                    fontSize = 16.sp
-                )
+                GraduaTextField(value = username, onValueChange = { username = it }, placeholder = "Nome de Usuário")
+                Spacer(modifier = Modifier.height(12.dp))
 
+                GraduaTextField(value = email, onValueChange = { email = it }, placeholder = "Email")
                 Spacer(modifier = Modifier.height(12.dp))
 
                 GraduaTextField(
@@ -120,125 +100,52 @@ fun RegisterScreen(onBackClick: () -> Unit, onRegisterSuccess: () -> Unit) {
                     placeholder = "Senha",
                     isPassword = true,
                     isPasswordVisible = isPasswordVisible,
-                    onVisibilityChange = { isPasswordVisible = !isPasswordVisible },
-                    fontSize = 16.sp
+                    onVisibilityChange = { isPasswordVisible = !isPasswordVisible }
                 )
-            }
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
+                GraduaTextField(value = escola, onValueChange = { escola = it }, placeholder = "Escola")
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Cartão do ENEM
-                SelectionCard(
-                    title = "ENEM",
-                    description = "Ensino Médio",
-                    icon = Icons.AutoMirrored.Outlined.MenuBook,
-                    isSelected = selectedExam == "ENEM",
-                    onClick = { selectedExam = "ENEM" },
-                    modifier = Modifier.weight(1f) // Ocupa 50% do espaço
-                )
+                Spacer(modifier = Modifier.height(32.dp))
 
-                // Cartão do ENADE
-                SelectionCard(
-                    title = "ENADE",
-                    description = "Graduação",
-                    icon = Icons.Outlined.School,
-                    isSelected = selectedExam == "ENADE",
-                    onClick = { selectedExam = "ENADE" },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                Button(
+                    onClick = {
+                        if (name.isNotEmpty() && username.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty() && escola.isNotEmpty()) {
+                            isLoading = true
+                            scope.launch {
+                                try {
+                                    val newUser = UserDto(name, username, email, password, escola)
+                                    val response = GraduaServerApi.service.registerUser(newUser)
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp) // O mesmo padding dos outros
-            ) {
-                if (selectedExam == "ENEM") {
-                    GraduaTextField(
-                        value = escola,
-                        onValueChange = { escola = it },
-                        placeholder = "Escola",
-                        fontSize = 16.sp
-                    )
-                } else {
-                    GraduaTextField(
-                        value = faculdade,
-                        onValueChange = { faculdade = it },
-                        placeholder = "Faculdade",
-                        fontSize = 16.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    // Lógica para pegar o dado correto
-                    val instituicaoEscolhida = if (selectedExam == "ENEM") escola else faculdade
-
-                    if (nome.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty() && instituicaoEscolhida.isNotEmpty()) {
-                        val success = dbHelper.addUser(nome, instituicaoEscolhida, email, password, selectedExam)
-                        if (success) {
-                            sessionManager.saveUserSession(email)
-                            Toast.makeText(context, "Conta criada com sucesso!", Toast.LENGTH_SHORT).show()
-                            onRegisterSuccess()
+                                    if (response.erro != null) {
+                                        Toast.makeText(context, response.erro, Toast.LENGTH_LONG).show()
+                                    } else {
+                                        // Salva localmente também para manter a sessão se necessário
+                                        userStore.registerUser(name, username, email, password, escola)
+                                        Toast.makeText(context, "Conta criada com sucesso!", Toast.LENGTH_SHORT).show()
+                                        onRegisterSuccess()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Erro de conexão: ${e.message}", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
                         } else {
-                            Toast.makeText(context, "Erro ao cadastrar.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Preencha todos os campos", Toast.LENGTH_SHORT).show()
                         }
-                    } else {
-                        Toast.makeText(context, "Preencha todos os campos obrigatórios.", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Criar conta", fontSize = 18.sp, color = Color.White)
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    else Text("Cadastrar", fontSize = 18.sp, color = Color.White)
+                }
+
+                Spacer(modifier = Modifier.height(innerPadding.calculateBottomPadding() + 50.dp))
             }
-        }
-    }
-}
-
-// função dos botões ENEM e ENADE
-@Composable
-fun SelectionCard(
-    title: String,
-    description: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val color = if (isSelected) PurplePrimary else Color.LightGray // Define a cor uma vez só
-
-    OutlinedCard(
-        onClick = onClick,
-        modifier = modifier.height(110.dp),
-        border = BorderStroke(2.dp, color),
-        colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically) // Substitui os Spacers
-        ) {
-            Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(30.dp))
-
-            Text(text = title, fontWeight = FontWeight.Bold, color = if (isSelected) PurplePrimary else Color.Gray)
-
-            Text(text = description, fontSize = 12.sp, color = TextGray)
         }
     }
 }
