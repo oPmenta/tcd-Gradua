@@ -94,7 +94,8 @@ fun MainScreen() {
             currentScreen == "historico" ||
             currentScreen == "login" ||
             currentScreen == "cadastro" ||
-            currentScreen == "perfil" // <--- ADICIONADO AGORA
+            currentScreen == "perfil" ||
+            currentScreen == "filtrar"
         ) {
             Modifier.fillMaxSize()
         } else {
