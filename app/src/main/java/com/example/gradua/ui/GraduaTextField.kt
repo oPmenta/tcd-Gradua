@@ -3,6 +3,8 @@ package com.example.gradua.ui
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+// Importante para controlar a cor da seleção/gota
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -60,7 +62,13 @@ fun GraduaTextField(
             focusedLabelColor = PurplePrimary,
             unfocusedLabelColor = Color.Gray,
             focusedTextColor = Color.Black,
-            unfocusedTextColor = Color.Black
+            unfocusedTextColor = Color.Black,
+
+            // --- CORREÇÃO DA GOTA E SELEÇÃO ---
+            selectionColors = TextSelectionColors(
+                handleColor = PurplePrimary, // A "gota" fica roxa
+                backgroundColor = PurplePrimary.copy(alpha = 0.4f) // O fundo da seleção fica roxo claro
+            )
         )
     )
 }
