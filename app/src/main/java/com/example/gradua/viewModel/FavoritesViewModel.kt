@@ -1,13 +1,16 @@
 package com.example.gradua.viewModel
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gradua.data.Question
+import com.example.gradua.data.UserStore
 import com.example.gradua.data.toQuestion
 import com.example.gradua.network.GraduaServerApi
+import com.example.gradua.network.ToggleFavoriteRequest
 import kotlinx.coroutines.launch
 
 class FavoritesViewModel : ViewModel() {
@@ -18,29 +21,45 @@ class FavoritesViewModel : ViewModel() {
     var favoriteQuestions: List<Question> by mutableStateOf(emptyList())
         private set
 
-    // Função para carregar apenas os favoritos
-    fun loadFavorites(savedIds: Set<String>) {
-        if (savedIds.isEmpty()) {
-            uiState = QuizUiState.Success
-            favoriteQuestions = emptyList()
-            return
-        }
-
+    // Carrega favoritos direto da API do Python
+    fun loadFavorites(context: Context) {
         viewModelScope.launch {
             uiState = QuizUiState.Loading
             try {
-                // 1. Baixa todas as questões (cacheie se possível no futuro)
-                val resultJson = GraduaServerApi.service.getAllQuestions(materia = null)
-                val allQuestions = resultJson.map { it.toQuestion() }
+                val userStore = UserStore(context)
+                val userId = userStore.getUserId()
 
-                // 2. Filtra apenas as que estão na lista de IDs salvos
-                favoriteQuestions = allQuestions.filter { question ->
-                    savedIds.contains(question.remoteId)
+                if (userId != null) {
+                    // Chama a API que busca no banco de dados
+                    val resultJson = GraduaServerApi.service.getFavorites(userId = userId)
+                    favoriteQuestions = resultJson.map { it.toQuestion() }
+                    uiState = QuizUiState.Success
+                } else {
+                    uiState = QuizUiState.Error("Usuário não identificado.")
                 }
-
-                uiState = QuizUiState.Success
             } catch (e: Exception) {
                 uiState = QuizUiState.Error("Erro ao carregar favoritos: ${e.message}")
+            }
+        }
+    }
+
+    // Remove um favorito da lista (e do banco)
+    fun removeFavorite(context: Context, questionId: String) {
+        viewModelScope.launch {
+            try {
+                val userId = UserStore(context).getUserId() ?: return@launch
+
+                // Avisa a API para remover
+                GraduaServerApi.service.toggleFavorite(
+                    userId = userId,
+                    body = ToggleFavoriteRequest(questionId)
+                )
+
+                // Remove da lista local visualmente para não precisar recarregar tudo
+                favoriteQuestions = favoriteQuestions.filter { it.remoteId != questionId }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

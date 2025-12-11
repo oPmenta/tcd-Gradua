@@ -17,7 +17,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gradua.data.UserStore
 import com.example.gradua.ui.QuestionItem
 import com.example.gradua.ui.theme.PurplePrimary
 import com.example.gradua.viewModel.QuizUiState
@@ -28,28 +27,27 @@ fun QuizScreen(
     materia: String?,
     conteudo: String,
     busca: String,
-    isSimulado: Boolean, // <--- NOVO PARÂMETRO
+    isSimulado: Boolean,
     onBackClick: () -> Unit,
     viewModel: QuizViewModel = viewModel()
 ) {
-    // Carrega dados da API passando a flag isSimulado
-    LaunchedEffect(materia, conteudo, busca, isSimulado) {
-        viewModel.fetchQuestions(materia, busca, conteudo, isSimulado)
-    }
-
     val context = LocalContext.current
-    val userStore = remember { UserStore(context) }
-    var favoriteIds by remember { mutableStateOf(userStore.getFavorites()) }
+
+    LaunchedEffect(materia, conteudo, busca, isSimulado) {
+        viewModel.fetchQuestions(context, materia, busca, conteudo, isSimulado)
+    }
 
     val uiState = viewModel.uiState
     val apiQuestions = viewModel.questionsList
 
+    val favoriteIds = viewModel.favoriteQuestionIds
+
+    // Mapa de respostas: ID da Questão -> Letra da Resposta
     var selectedAnswers by remember { mutableStateOf(mapOf<Int, String>()) }
+
     var showFeedback by remember { mutableStateOf(false) }
     var showResultDialog by remember { mutableStateOf(false) }
     var score by remember { mutableIntStateOf(0) }
-
-    // Controle para mostrar apenas erros ou tudo. Padrão é FALSE (mostra tudo)
     var showOnlyErrors by remember { mutableStateOf(false) }
 
     val questionsDisplay = remember(apiQuestions, showOnlyErrors, showFeedback) {
@@ -102,9 +100,28 @@ fun QuizScreen(
                         Button(
                             onClick = {
                                 if (showFeedback) onBackClick() else {
+
                                     var acertos = 0
-                                    apiQuestions.forEach { if (selectedAnswers[it.id] == it.gabarito) acertos++ }
+                                    var erros = 0
+
+                                    apiQuestions.forEach { q ->
+                                        val respostaUsuario = selectedAnswers[q.id]
+
+                                        if (respostaUsuario != null) {
+                                            if (respostaUsuario == q.gabarito) {
+                                                acertos++
+                                            } else {
+                                                erros++
+                                            }
+                                        }
+                                    }
+
                                     score = acertos
+
+                                    if (isSimulado) {
+                                        viewModel.submitSimulado(context, acertos, erros)
+                                    }
+
                                     showFeedback = true
                                     showResultDialog = true
                                 }
@@ -143,12 +160,21 @@ fun QuizScreen(
                 .padding(paddingValues)
         ) {
             when (uiState) {
-                is QuizUiState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                is QuizUiState.Loading -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = PurplePrimary)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Carregando questões...", color = Color.Gray)
+                    }
+                }
 
                 is QuizUiState.Error -> {
                     Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(uiState.message, color = Color.Red)
-                        Button(onClick = { viewModel.fetchQuestions(materia, busca, conteudo, isSimulado) }) {
+                        Button(onClick = { viewModel.fetchQuestions(context, materia, busca, conteudo, isSimulado) }) {
                             Text("Tentar Novamente")
                         }
                     }
@@ -169,10 +195,23 @@ fun QuizScreen(
                                     showFeedback = showFeedback,
                                     isFavorite = favoriteIds.contains(question.remoteId),
                                     onFavoriteToggle = {
-                                        userStore.toggleFavorite(question.remoteId)
-                                        favoriteIds = userStore.getFavorites()
+                                        viewModel.toggleFavorite(context, question.remoteId)
                                     },
-                                    onOptionSelected = { letra -> if (!showFeedback) selectedAnswers = selectedAnswers.toMutableMap().apply { put(question.id, letra) } }
+
+                                    // --- LÓGICA DE SELEÇÃO E DESELEÇÃO ---
+                                    onOptionSelected = { letra ->
+                                        if (!showFeedback) {
+                                            selectedAnswers = selectedAnswers.toMutableMap().apply {
+                                                // Se clicar no que já está selecionado -> Remove (Deseleciona)
+                                                if (this[question.id] == letra) {
+                                                    remove(question.id)
+                                                } else {
+                                                    // Senão -> Seleciona o novo
+                                                    put(question.id, letra)
+                                                }
+                                            }
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -188,6 +227,7 @@ fun QuizScreen(
                 text = {
                     Column {
                         Text("Você acertou $score de ${apiQuestions.size} questões!")
+
                         if (score == apiQuestions.size && apiQuestions.isNotEmpty()) {
                             Text("Parabéns! Gabaritou! 🏆", color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                         }
@@ -196,8 +236,6 @@ fun QuizScreen(
                 confirmButton = {
                     Button(onClick = {
                         showResultDialog = false
-                        // --- CORREÇÃO AQUI ---
-                        // Define showOnlyErrors = false para mostrar TUDO (acertos e erros)
                         showOnlyErrors = false
                     }) {
                         Text("Ver Correção")

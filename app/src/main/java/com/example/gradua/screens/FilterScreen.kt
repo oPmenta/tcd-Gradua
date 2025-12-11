@@ -1,11 +1,13 @@
 package com.example.gradua.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -13,9 +15,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager // IMPORTANTE
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,11 +29,9 @@ import com.example.gradua.viewModel.FilterViewModel
 
 @Composable
 fun FilterScreen(
-    // Agora aceita 3 parâmetros: Materia, Busca e CONTEUDO
     onFilterApplied: (String, String, String) -> Unit,
     viewModel: FilterViewModel = viewModel()
 ) {
-    // Gerenciador de Foco para fechar teclado
     val focusManager = LocalFocusManager.current
 
     var searchText by remember { mutableStateOf("") }
@@ -39,8 +41,6 @@ fun FilterScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // --- AQUI ESTÁ O TRUQUE PARA O FOCO ---
-            // Detecta toque em qualquer lugar vazio e tira o foco
             .pointerInput(Unit) {
                 detectTapGestures(onTap = {
                     focusManager.clearFocus()
@@ -59,20 +59,43 @@ fun FilterScreen(
         )
 
         if (viewModel.isLoading) {
-            CircularProgressIndicator(color = PurplePrimary)
-            Text("Carregando...", modifier = Modifier.padding(top = 8.dp))
+            // --- CORREÇÃO DE ALINHAMENTO AQUI ---
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = PurplePrimary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Carregando...", color = Color.Gray, fontSize = 16.sp)
+                }
+            }
         } else {
 
+            // CAMPO DE BUSCA
             OutlinedTextField(
                 value = searchText,
                 onValueChange = { searchText = it },
                 label = { Text("Buscar no enunciado") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF0F0F0),
+                    unfocusedContainerColor = Color(0xFFF0F0F0),
+                    disabledContainerColor = Color(0xFFF0F0F0),
+                    focusedBorderColor = PurplePrimary,
+                    unfocusedBorderColor = Color.Transparent,
+                    cursorColor = PurplePrimary,
+                    focusedLabelColor = PurplePrimary,
+                    unfocusedLabelColor = Color.Gray,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // SELECT MATÉRIA
             GraduaDropdown(
                 label = "Selecione a Matéria",
                 options = viewModel.availableSubjects,
@@ -86,6 +109,7 @@ fun FilterScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // SELECT CONTEÚDO
             if (selectedSubject.isNotEmpty()) {
                 GraduaDropdown(
                     label = "Selecione o Conteúdo",
@@ -94,14 +118,25 @@ fun FilterScreen(
                     onOptionSelected = { selectedContent = it }
                 )
             } else {
-                Text("Selecione uma matéria primeiro", fontSize = 14.sp, color = Color.Gray)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .background(Color(0xFFF0F0F0), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "Selecione uma matéria primeiro",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(48.dp))
 
             Button(
                 onClick = {
-                    // Passa os 3 filtros para a MainActivity
                     onFilterApplied(selectedSubject, searchText, selectedContent)
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -114,7 +149,6 @@ fun FilterScreen(
     }
 }
 
-// (Mantenha o seu GraduaDropdown igual aqui embaixo...)
 @Composable
 fun GraduaDropdown(
     label: String,
@@ -123,42 +157,91 @@ fun GraduaDropdown(
     onOptionSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val displayText = if (selectedOption.isEmpty()) label else selectedOption
+
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
+    val borderCol = if (expanded) PurplePrimary else Color.Transparent
+    val labelCol = if (expanded) PurplePrimary else Color.Gray
+    val iconCol = if (expanded) PurplePrimary else Color.Gray
 
     Box(modifier = Modifier.fillMaxWidth()) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clickable { expanded = !expanded }
-        ) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = displayText, color = Color.Black)
+
+        OutlinedTextField(
+            value = selectedOption,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = {
                 Icon(
                     imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = "Expandir",
-                    tint = Color.Black
+                    tint = iconCol
                 )
-            }
-        }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFFF0F0F0),
+                unfocusedContainerColor = Color(0xFFF0F0F0),
+                disabledContainerColor = Color(0xFFF0F0F0),
+                focusedBorderColor = borderCol,
+                unfocusedBorderColor = borderCol,
+                focusedLabelColor = labelCol,
+                unfocusedLabelColor = labelCol,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
+        )
+
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    if (!expanded) {
+                        expanded = true
+                        focusRequester.requestFocus()
+                    } else {
+                        expanded = false
+                        focusManager.clearFocus()
+                    }
+                }
+        )
+
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.85f)
+            onDismissRequest = {
+                expanded = false
+                focusManager.clearFocus()
+            },
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .background(Color.White, RoundedCornerShape(12.dp))
+                .heightIn(max = 250.dp),
+            offset = androidx.compose.ui.unit.DpOffset(x = 0.dp, y = 4.dp)
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(text = option) },
+                    text = {
+                        Text(
+                            text = option,
+                            color = if (option == selectedOption) PurplePrimary else Color.Black,
+                            fontWeight = if (option == selectedOption) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
                     onClick = {
                         onOptionSelected(option)
                         expanded = false
-                    }
+                        focusManager.clearFocus()
+                    },
+                    modifier = Modifier.background(
+                        if (option == selectedOption) PurplePrimary.copy(alpha = 0.05f) else Color.Transparent
+                    )
                 )
             }
         }

@@ -14,7 +14,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gradua.data.UserStore
 import com.example.gradua.ui.QuestionItem
 import com.example.gradua.ui.theme.PurplePrimary
 import com.example.gradua.viewModel.FavoritesViewModel
@@ -25,12 +24,10 @@ fun FavoritesScreen(
     viewModel: FavoritesViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val userStore = remember { UserStore(context) }
 
-    var favoriteIds by remember { mutableStateOf(userStore.getFavorites()) }
-
-    LaunchedEffect(favoriteIds) {
-        viewModel.loadFavorites(favoriteIds)
+    // Chama a API assim que a tela abre
+    LaunchedEffect(Unit) {
+        viewModel.loadFavorites(context)
     }
 
     Scaffold(
@@ -67,12 +64,8 @@ fun FavoritesScreen(
         }
     ) { paddingValues ->
 
-        // --- CORREÇÃO FINAL DO CORTE ---
-        // 1. Altura da barra de gestos do Android
+        // Ajuste para não cortar o último item na barra de baixo
         val systemNavBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-
-        // 2. Altura aproximada do Menu do App (BottomBar) + Margem de segurança
-        // Geralmente a BottomBar tem 80dp. Somamos com a barra do sistema.
         val bottomPaddingTotal = 16.dp + systemNavBarHeight + 80.dp
 
         Box(
@@ -83,7 +76,18 @@ fun FavoritesScreen(
         ) {
             when (val state = viewModel.uiState) {
                 is QuizUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = PurplePrimary)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Carregando...",
+                            color = Color.Gray,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
                 is QuizUiState.Error -> {
                     Text(
@@ -102,12 +106,11 @@ fun FavoritesScreen(
                         }
                     } else {
                         LazyColumn(
-                            // AQUI APLICAMOS O PADDING CALCULADO
                             contentPadding = PaddingValues(
                                 top = 16.dp,
                                 start = 16.dp,
                                 end = 16.dp,
-                                bottom = bottomPaddingTotal // Garante que suba acima do menu
+                                bottom = bottomPaddingTotal
                             ),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
@@ -116,10 +119,10 @@ fun FavoritesScreen(
                                     question = question,
                                     selectedOption = null,
                                     showFeedback = false,
-                                    isFavorite = true,
+                                    isFavorite = true, // Na tela de favoritos, sempre é true
                                     onFavoriteToggle = {
-                                        userStore.toggleFavorite(question.remoteId)
-                                        favoriteIds = userStore.getFavorites()
+                                        // Ao clicar no coração aqui, remove da lista e do banco
+                                        viewModel.removeFavorite(context, question.remoteId)
                                     },
                                     onOptionSelected = { }
                                 )

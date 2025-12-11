@@ -1,6 +1,5 @@
 package com.example.gradua.viewModel
 
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -13,47 +12,65 @@ import kotlinx.coroutines.launch
 
 class FilterViewModel : ViewModel() {
 
-    private var allQuestionsCache: List<Question> = emptyList()
+    var isLoading by mutableStateOf(false)
 
-    var isLoading by mutableStateOf(true)
+    // Listas para os Dropdowns
     var availableSubjects by mutableStateOf<List<String>>(emptyList())
     var availableContents by mutableStateOf<List<String>>(emptyList())
 
+    // Cache local de todas as questões para não baixar de novo ao trocar matéria
+    private var allQuestionsCache: List<Question> = emptyList()
+
     init {
-        loadFilterData()
+        loadFilters()
     }
 
-    private fun loadFilterData() {
+    private fun loadFilters() {
         viewModelScope.launch {
+            isLoading = true
             try {
-                isLoading = true
-                val resultJson = GraduaServerApi.service.getAllQuestions(materia = null)
-                allQuestionsCache = resultJson.map { it.toQuestion() }
+                // Baixa tudo para extrair as matérias disponíveis
+                val result = GraduaServerApi.service.getAllQuestions(materia = null)
+                allQuestionsCache = result.map { it.toQuestion() }
 
-                availableSubjects = allQuestionsCache
+                // Extrai matérias únicas e ordena
+                val subjects = allQuestionsCache
                     .map { it.materia }
                     .distinct()
                     .sorted()
 
-                isLoading = false
+                // --- ADICIONA "Todas" NO INÍCIO ---
+                availableSubjects = listOf("Todas") + subjects
+
             } catch (e: Exception) {
-                Log.e("FilterViewModel", "Erro ao carregar filtros", e)
+                e.printStackTrace()
+            } finally {
                 isLoading = false
             }
         }
     }
 
+    // Chamado quando o usuário escolhe uma matéria no primeiro Dropdown
     fun onSubjectSelected(subject: String) {
-        // --- LÓGICA DE SEPARAÇÃO APLICADA AQUI ---
-        availableContents = allQuestionsCache
-            .filter { it.materia == subject }
-            .mapNotNull { it.conteudo }
-            // 1. Quebra a string onde tem "/"
-            .flatMap { it.split("/") }
-            // 2. Remove espaços em branco do começo e fim (ex: " Urbanização " vira "Urbanização")
-            .map { it.trim() }
-            // 3. Remove duplicatas e ordena
-            .distinct()
-            .sorted()
+        if (subject == "Todas") {
+            // Se escolheu "Todas", o conteúdo pode ser qualquer um de qualquer matéria
+            // (Ou você pode deixar apenas ["Todos"] se preferir simplificar)
+            val allContents = allQuestionsCache
+                .mapNotNull { it.conteudo } // Pega conteúdos não nulos
+                .distinct()
+                .sorted()
+
+            availableContents = listOf("Todos") + allContents
+        } else {
+            // Filtra os conteúdos apenas daquela matéria
+            val subjectContents = allQuestionsCache
+                .filter { it.materia == subject }
+                .mapNotNull { it.conteudo }
+                .distinct()
+                .sorted()
+
+            // --- ADICIONA "Todos" NO INÍCIO ---
+            availableContents = listOf("Todos") + subjectContents
+        }
     }
 }
