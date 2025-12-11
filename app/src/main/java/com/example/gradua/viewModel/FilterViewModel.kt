@@ -18,7 +18,7 @@ class FilterViewModel : ViewModel() {
     var availableSubjects by mutableStateOf<List<String>>(emptyList())
     var availableContents by mutableStateOf<List<String>>(emptyList())
 
-    // Cache local de todas as questões para não baixar de novo ao trocar matéria
+    // Cache local de todas as questões
     private var allQuestionsCache: List<Question> = emptyList()
 
     init {
@@ -29,17 +29,16 @@ class FilterViewModel : ViewModel() {
         viewModelScope.launch {
             isLoading = true
             try {
-                // Baixa tudo para extrair as matérias disponíveis
+                // Baixa tudo
                 val result = GraduaServerApi.service.getAllQuestions(materia = null)
                 allQuestionsCache = result.map { it.toQuestion() }
 
-                // Extrai matérias únicas e ordena
+                // Extrai matérias únicas
                 val subjects = allQuestionsCache
                     .map { it.materia }
                     .distinct()
                     .sorted()
 
-                // --- ADICIONA "Todas" NO INÍCIO ---
                 availableSubjects = listOf("Todas") + subjects
 
             } catch (e: Exception) {
@@ -50,27 +49,27 @@ class FilterViewModel : ViewModel() {
         }
     }
 
-    // Chamado quando o usuário escolhe uma matéria no primeiro Dropdown
     fun onSubjectSelected(subject: String) {
-        if (subject == "Todas") {
-            // Se escolheu "Todas", o conteúdo pode ser qualquer um de qualquer matéria
-            // (Ou você pode deixar apenas ["Todos"] se preferir simplificar)
-            val allContents = allQuestionsCache
-                .mapNotNull { it.conteudo } // Pega conteúdos não nulos
-                .distinct()
-                .sorted()
-
-            availableContents = listOf("Todos") + allContents
+        // Filtra as questões da matéria selecionada (ou todas)
+        val questionsToFilter = if (subject == "Todas") {
+            allQuestionsCache
         } else {
-            // Filtra os conteúdos apenas daquela matéria
-            val subjectContents = allQuestionsCache
-                .filter { it.materia == subject }
-                .mapNotNull { it.conteudo }
-                .distinct()
-                .sorted()
-
-            // --- ADICIONA "Todos" NO INÍCIO ---
-            availableContents = listOf("Todos") + subjectContents
+            allQuestionsCache.filter { it.materia == subject }
         }
+
+        // --- LÓGICA DE SEPARAÇÃO (SPLIT) ADICIONADA AQUI ---
+        val contents = questionsToFilter
+            .mapNotNull { it.conteudo } // Pega só quem tem conteúdo
+            .flatMap { conteudoTexto ->
+                // Quebra o texto onde tiver barra (/) ou vírgula (,)
+                // Ex: "Cultura / Patrimônio" vira ["Cultura ", " Patrimônio"]
+                conteudoTexto.split("/", ",")
+            }
+            .map { it.trim() } // Remove espaços extras (" Patrimônio" vira "Patrimônio")
+            .filter { it.isNotEmpty() } // Remove vazios
+            .distinct() // Remove duplicados
+            .sorted() // Ordena alfabeticamente
+
+        availableContents = listOf("Todos") + contents
     }
 }
